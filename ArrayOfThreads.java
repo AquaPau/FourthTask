@@ -1,94 +1,55 @@
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 //Класс рабочий
 class Worker extends Thread {
-    Conveyer conveyer;
     int numberOfDetails;
 
-    Worker(String name, Conveyer conveyer, int numberOfDetails) {
+    Worker(String name, int numberOfDetails) {
         super(name);
-        this.conveyer = conveyer;
         this.numberOfDetails = numberOfDetails;
     }
     public void run() {
-        //Если деталей на конвеере нет переходим в else где первый рабочий создает детали и ложит их на конвеер
-
-        //Когда на конвеер первый рабочий положил детали, то другие рабочии начинают эти детали обрабатывать и ложить
-        //на конвеер обратно
-        if (!conveyer.detailsOnConveyer.isEmpty()) {
-            String gottenDetail = conveyer.GetFromConveyer();
-            System.out.println(Thread.currentThread().getName() +"- "+ gottenDetail);
-            String RefactoredDetail = gottenDetail;
-            conveyer.InsertIntoConveyer(RefactoredDetail);
-        } else {
-            MakeDetail makeDetail = new MakeDetail();
-            for (int i =0; i < numberOfDetails; i++) {
-                String nameOfDetail = makeDetail.DetailisMade();
-                conveyer.PushToConveyer(nameOfDetail);
-                System.out.println(Thread.currentThread().getName() + "- " + nameOfDetail);
+        synchronized (this) {
+            for (int i = 0; i < numberOfDetails; i++) {
+                System.out.println(Thread.currentThread().getName() + " -деталь" + (i + 1));
+                notify();
             }
         }
     }
 }
-//класс в котором первый рабочий создает свои детали
-class MakeDetail{
-    private static int detailNmber = 0;
-    public synchronized String DetailisMade(){
-        detailNmber++;
-        return "деталь" + detailNmber;
-    }
-}
-//Конвеер
-class Conveyer{
-    //Массив ArrayList является конвеером
-    public static final List<String> detailsOnConveyer=new ArrayList<String>();
-
-    //Метод который ложит детали на конвеер (сначала деталь1, деталь2, деталь3)
-    public synchronized void PushToConveyer(String detail){
-        detailsOnConveyer.add(detail);
-
-    }
-    //метод забора с конвеера который позволякт забирать деталь лежащей первой на конвеере
-    public synchronized String GetFromConveyer(){
-        String rem_Element = detailsOnConveyer.get(0);
-        detailsOnConveyer.remove(0);
-        return rem_Element;
-    }
-
-    //Метод который позволяет положить деталь на первое место на конвеере
-    public synchronized void InsertIntoConveyer(String detail){
-        detailsOnConveyer.add(0, detail);
-    }
-}
 
 public class ArrayOfThreads{
-    public static void main(String args[])
-    {
-        //Задаю количество рабочих, например 5
-        Worker worker[] = new Worker[5];
-        //Запускаю конвеер
-        Conveyer conveyer = new Conveyer();
-        //Задаю количество деталей
-        int numberOfDetails = 3;
+    public static void main(String args[]) {
+        if (args.length == 0) {
+            System.err.println("Не введены параметры!");
+            System.exit(0);
+        }
+        int numberOfThreads=0;
+        int numberOfDetails=0;
 
-        //Создаю 5 классов потоков с именем рабочий 1,2,3,4,5
-        //передаю туда свой конвеер и количество деталей мне нужных
-        for(int i = 0; i < worker.length; i++)
-        {
-            worker[i] = new Worker("Рабочий" + (i+1), conveyer, numberOfDetails);
+        try{
+            //Задаю количество рабочих
+            numberOfThreads = Integer.parseInt(args[0]);
+            //Задаю количество деталей
+            numberOfDetails = Integer.parseInt(args[1]);
+            if (numberOfThreads == 0 || numberOfDetails ==0){
+                throw new IllegalArgumentException();
+            }
+        }catch (java.lang.NumberFormatException exc){
+            System.out.println("Ввод не может быть словом " + exc);
+            System.exit(0);
+        }catch (IllegalArgumentException e){
+            System.out.println("Вводимый параметр не может быть нулем " +e);
+            System.exit(0);
         }
 
-        //Запускаю все потоки-рабочих
-        for (int i =0; i < worker.length; i++) {
-            worker[i].start();
+        //Массив принимающих потоки-рабочих
+        Worker worker[] = new Worker[numberOfThreads];
+        for(int i = 0; i < worker.length; i++) {
             try {
-                //без sleep сразу все начинает ломаться, я не знаю как его заменить на что то другое
-                TimeUnit.SECONDS.sleep(1);
+                worker[i] = new Worker("Рабочий" + (i + 1), numberOfDetails);
+                worker[i].start();
+                worker[0].join();
+                worker[i].wait();
             }catch (Exception e){}
         }
-
-
     }
 }
